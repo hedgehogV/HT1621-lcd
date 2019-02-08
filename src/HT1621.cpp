@@ -42,6 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MAX_POSITIVE_PRECISION 3
 #define MAX_NEGATIVE_PRECISION 2
 
+#define BITS_PER_BYTE 8
+
 /**
  * @brief DISPLAY HARDWARE DEFINES BLOCK
  */
@@ -129,7 +131,7 @@ void HT1621::wrByte(uint8_t addr, uint8_t byte)
     pCsPin(LOW);
     wrBits(MODE_WR, 3);
     wrBits(addr, 6);
-    wrBits(byte, sizeof(byte));
+    wrBits(byte, sizeof(byte) * BITS_PER_BYTE);
     pCsPin(HIGH);
 }
 
@@ -141,7 +143,7 @@ void HT1621::wrCmd(uint8_t cmd) // TODO: think about va_args
 
     pCsPin(LOW);
     wrBits(MODE_CMD, 4);
-    wrBits(cmd, sizeof(cmd));
+    wrBits(cmd, sizeof(cmd) * BITS_PER_BYTE);
     pCsPin(HIGH);
 }
 
