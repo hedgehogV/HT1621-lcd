@@ -134,8 +134,8 @@ private:
 
     // the most low-level function. Just put one bit into display
     void wrBits(uint8_t bitField, uint8_t cnt);
-    // write data byte to the display at specified addr
-    void wrByte(uint8_t addr, uint8_t byte);
+    // write _buffer to the display
+    void wrBuffer();
     // write command sequance to display
     void wrCmd(uint8_t cmd);
     // set decimal separator. Used when print float numbers

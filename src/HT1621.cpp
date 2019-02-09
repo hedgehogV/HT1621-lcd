@@ -59,8 +59,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define  TONEOFF  0x10             //0b1000 0001 0000  Turn off tone outputs
 #define  WDTDIS1  0x0A             //0b1000 0000 1010  Disable WDT time-out flag output
 
-#define MODE_CMD  0x80
-#define MODE_WR   0xa0
+#define MODE_CMD  0x08
+#define MODE_DATA 0x05
 
 #define BATTERY_SEG_ADDR    0x80
 #define SEPARATOR_SEG_ADDR  0x80
@@ -78,9 +78,47 @@ const char ascii[] =
 /*5*/ 	0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+union tCmdSeq
+{
+    struct __attribute__((packed))
+    {
+#if (('1234' >> 24) == '1') // LITTLE_ENDIAN
+        uint16_t padding : 4;
+        uint16_t data : 8;
+        uint16_t type : 4;
+#elif (('4321' >> 24) == '1') // BIG_ENDIAN
+        uint16_t type : 4;
+        uint16_t data : 8;
+        uint16_t padding : 4;
+#endif
+    };
+    uint8_t arr[2];
+};
+
+union tDataSeq
+{
+    struct __attribute__((packed))
+    {
+#if (('1234' >> 24) == '1') // LITTLE_ENDIAN
+        uint8_t padding : 7;
+        uint16_t data2 : 16;
+        uint16_t data1 : 16;
+        uint16_t data0 : 16;
+        uint8_t addr : 6;
+        uint8_t type : 3;
+#elif (('4321' >> 24) == '1') // BIG_ENDIAN
+        uint8_t type : 3;
+        uint8_t addr: 6;
+        uint16_t data0 : 16;
+        uint16_t data1 : 16;
+        uint16_t data2 : 16;
+        uint8_t padding : 7;
+#endif
+    };
+    uint8_t arr[8];
+};
 
 
-// TODO: replace magic numbers
 // TODO: give wrapper example for GPIO toggle in README and in hpp
 HT1621::HT1621(pPinSet *pCs, pPinSet *pSck, pPinSet *pMosi, pPinSet *pBacklight)
 {
@@ -134,32 +172,43 @@ void HT1621::wrBits(uint8_t bitField, uint8_t cnt)
     }
 }
 
-void HT1621::wrByte(uint8_t addr, uint8_t byte)
+void HT1621::wrBuffer()
 {
     if (!pCsPin)
         return;
 
-    addr <<= 2;
+    tDataSeq dataSeq = {};
+    dataSeq.type = MODE_DATA;
+    dataSeq.addr = 0;
+
+    dataSeq.data0 = (_buffer[5] << 8) + _buffer[4];
+    dataSeq.data1 = (_buffer[3] << 8) + _buffer[2];
+    dataSeq.data2 = (_buffer[1] << 8) + _buffer[0];
 
     pCsPin(LOW);
-    wrBits(MODE_WR, 3);
-    wrBits(addr, 6);
-    wrBits(byte, sizeof(byte) * BITS_PER_BYTE);
+
+    for (int i = 0; i < (int)sizeof(tDataSeq); i++)
+    {
+        wrBits(dataSeq.arr[7 - i], 8);
+    }
+
     pCsPin(HIGH);
 }
 
-
-void HT1621::wrCmd(uint8_t cmd) // TODO: think about va_args
+void HT1621::wrCmd(uint8_t cmd)
 {
     if (!pCsPin)
         return;
 
+    tCmdSeq CommandSeq = {};
+    CommandSeq.type = MODE_CMD;
+    CommandSeq.data = cmd;
+
     pCsPin(LOW);
-    wrBits(MODE_CMD, 4);
-    wrBits(cmd, sizeof(cmd) * BITS_PER_BYTE);
+    wrBits(CommandSeq.arr[1], 8);
+    wrBits(CommandSeq.arr[0], 8);
     pCsPin(HIGH);
 }
-
 
 void HT1621::batteryLevel(tBatteryLevel level)
 {
@@ -181,7 +230,7 @@ void HT1621::batteryLevel(tBatteryLevel level)
         default:
             break;
     }
-    update();
+    wrBuffer();
 }
 
 void HT1621::batteryBufferClear()
@@ -206,23 +255,13 @@ void HT1621::lettersBufferClear()
     }
 }
 
-
 void HT1621::clear()
 {
-    for (int addr = 0; addr < DISPLAY_SIZE; addr++)
-    {
-        wrByte(addr * 2, 0);
-    }
-}
+    batteryBufferClear();
+    dotsBufferClear();
+    lettersBufferClear();
 
-
-void HT1621::update()
-{
-    // the buffer is backwards with respect to the lcd. could be improved
-    for (int i = 0; i < DISPLAY_SIZE; i++)
-    {
-        wrByte(i * 2, _buffer[DISPLAY_SIZE - i - 1]);
-    }
+    wrBuffer();
 }
 
 void HT1621::print(const char *str)
@@ -240,7 +279,7 @@ void HT1621::print(const char *str)
             _buffer[i] |= ascii[str[i] - ' '];
     }
 
-    update();
+    wrBuffer();
 }
 
 void HT1621::print(int32_t num)
@@ -261,9 +300,8 @@ void HT1621::print(int32_t num)
         _buffer[i] |= ascii[str[i] - ' '];
     }
 
-    update();
+    wrBuffer();
 }
-
 
 void HT1621::print(float num, uint8_t precision)
 {
@@ -283,7 +321,7 @@ void HT1621::print(float num, uint8_t precision)
     print(integerated);
     decimalSeparator(precision);
 
-    update();
+    wrBuffer();
 }
 
 void HT1621::decimalSeparator(uint8_t dpPosition)
