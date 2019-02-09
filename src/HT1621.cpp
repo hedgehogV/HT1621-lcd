@@ -163,10 +163,7 @@ void HT1621::wrCmd(uint8_t cmd) // TODO: think about va_args
 
 void HT1621::batteryLevel(tBatteryLevel level)
 {
-    // zero out stored battery level
-    _buffer[0] &= ~BATTERY_SEG_ADDR;
-    _buffer[1] &= ~BATTERY_SEG_ADDR;
-    _buffer[2] &= ~BATTERY_SEG_ADDR;
+    batteryBufferClear();
 
     switch(level)
     {
@@ -187,12 +184,34 @@ void HT1621::batteryLevel(tBatteryLevel level)
     update();
 }
 
+void HT1621::batteryBufferClear()
+{
+    _buffer[0] &= ~BATTERY_SEG_ADDR;
+    _buffer[1] &= ~BATTERY_SEG_ADDR;
+    _buffer[2] &= ~BATTERY_SEG_ADDR;
+}
+
+void HT1621::dotsBufferClear()
+{
+    _buffer[3] &= ~SEPARATOR_SEG_ADDR;
+    _buffer[4] &= ~SEPARATOR_SEG_ADDR;
+    _buffer[5] &= ~SEPARATOR_SEG_ADDR;
+}
+
+void HT1621::lettersBufferClear()
+{
+    for (int i = 0; i < DISPLAY_SIZE; i++)
+    {
+        _buffer[i] &= 0x80;
+    }
+}
+
 
 void HT1621::clear()
 {
-    for (int addr = 0; addr < DISPLAY_SIZE * 2; addr += 2)
+    for (int addr = 0; addr < DISPLAY_SIZE; addr++)
     {
-        wrByte(addr, 0);
+        wrByte(addr * 2, 0);
     }
 }
 
@@ -208,11 +227,11 @@ void HT1621::update()
 
 void HT1621::print(const char *str)
 {
+    dotsBufferClear();
+    lettersBufferClear();
+
     for (int i = 0; i < DISPLAY_SIZE; i++)
     {
-    	// mask the first bit, used by batter and decimal point
-        _buffer[i] &= 0x80;
-
         if (i >= (int)strlen(str))
         	// show letter is it exists
             _buffer[i] |= ascii[0];
@@ -231,18 +250,18 @@ void HT1621::print(int32_t num)
     if (num < MIN_NUM)
         num = MIN_NUM;
 
-    // TODO: dots should be cleared
+    dotsBufferClear();
+    lettersBufferClear();
 
     char str[DISPLAY_SIZE + 1] = {};
-    snprintf(str, sizeof(str), "%6li", num); // convert the decimal into string
+    snprintf(str, sizeof(str), "%6li", num);
 
     for (int i = 0; i < DISPLAY_SIZE; i++)
     {
-        _buffer[i] &= 0x80; // mask the first bit, used by batter and decimal point
         _buffer[i] |= ascii[str[i] - ' '];
-	}
+    }
 
-	update();
+    update();
 }
 
 
@@ -260,6 +279,7 @@ void HT1621::print(float num, uint8_t precision)
     if (integerated < MIN_NUM)
         integerated = MIN_NUM;
 
+    lettersBufferClear();
     print(integerated);
     decimalSeparator(precision);
 
@@ -268,10 +288,7 @@ void HT1621::print(float num, uint8_t precision)
 
 void HT1621::decimalSeparator(uint8_t dpPosition)
 {
-    // zero out the eight bit
-    _buffer[3] &= ~SEPARATOR_SEG_ADDR;
-    _buffer[4] &= ~SEPARATOR_SEG_ADDR;
-    _buffer[5] &= ~SEPARATOR_SEG_ADDR;
+    dotsBufferClear();
 
     if (dpPosition == 0 || dpPosition > 3)
         return;

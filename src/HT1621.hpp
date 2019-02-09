@@ -142,6 +142,12 @@ private:
     void decimalSeparator(uint8_t dpPosition);
     // takes the buffer and puts it straight into the driver
     void update();
+    // remove battery symbol from display buffer
+    void batteryBufferClear();
+    // remove dot symbol from display buffer
+    void dotsBufferClear();
+    // remove all symbols from display buffer except battery and dots
+    void lettersBufferClear();
 };
 
 #endif
