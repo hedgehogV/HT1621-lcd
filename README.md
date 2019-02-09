@@ -28,6 +28,11 @@ Turns off the backlight
 * `void batteryLevel(tBatteryLevel level)`
 Accepts values from 0 to 3. Smaller values will be treated like 0, bigger values will be treated as 3. 0 turns off the battery symbol. Values from 1 to 3 will be represented by the rectangles above the battery symbol.
 
+* `void print(const char *str)`
+Print string (up to 6 characters)
+Allowed characters: capital letters, digits, space, minus. Not allowed characters will be displayed as spaces.
+See characters appearence in `Internal functioning` chapter
+
 * `void print(int32_t num)`
 Prints a signed integer between -99999 and 999999. Larger and smaller values will be displayed as -99999 and 999999
 
@@ -42,6 +47,12 @@ Turns the display back on after it has been disabled by `noDisplay()`
 
 
 ## Internal functioning
+
+Letters example. Source: https://www.dcode.fr/7-segment-display
+Some of them looks a bit strange. But 7-segment display isn't
+the best thing to show letters
+
+<img src="extras/letters.png" alt="photo" width="500">
 
 ° -> 0x33 = 10 + 20 + 01 + 02
 C -> 0x1D = 10 + 01 + 04 + 08

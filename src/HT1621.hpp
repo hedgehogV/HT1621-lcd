@@ -89,6 +89,14 @@ public:
     void batteryLevel(tBatteryLevel level);
 
     /**
+     * @brief Print string (up to 6 characters)
+     *
+     * @param str String to be displayed. Allowed: capital letters, digits, space, minus
+     * Not allowed symbols will be displayed as spaces. See symbols appearence in README.md
+     */
+    void print(const char *str);
+
+    /**
      * @brief Prints a signed integer between -99999 and 999999.
      * Larger and smaller values will be displayed as -99999 and 999999
      *

@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "HT1621.hpp"
 #include "math.h"
 #include "stdio.h"
+#include "string.h"
 
 /**
  * @brief CALCULATION DEFINES BLOCK
@@ -64,6 +65,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BATTERY_SEG_ADDR    0x80
 #define SEPARATOR_SEG_ADDR  0x80
 
+const char ascii[] =
+{
+/*       0     1     2     3     4     5     6     7     8     9     a     b     c     d     e     f */
+/*      ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   '-'   ' '   ' ' */
+/*2*/ 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+/*      '0'   '1'   '2'   '3'   '4'   '5'   '6'   '7'   '8'   '9'   ' '   ' '   ' '   ' '   ' '   ' ' */
+/*3*/   0x7D, 0x60, 0x3e, 0x7a, 0x63, 0x5b, 0x5f, 0x70, 0x7f, 0x7b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+/*      ' '   'A'   'B'   'C'   'D'   'E'   'F'   'G'   'H'   'I'   'J'   'K'   'L'   'M'   'N'   'O' */
+/*4*/ 	0x00, 0x77, 0x4f, 0x1d, 0x6e, 0x1f, 0x17, 0x5d, 0x47, 0x05, 0x68, 0x27, 0x0d, 0x54, 0x75, 0x4e,
+/*      'P'   'Q'   'R'   'S'   'T'   'U'   'V'   'W'   'X'   'Y'   'Z'   ' '   ' '   ' '   ' '   '_' */
+/*5*/ 	0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
 
 
 
@@ -186,14 +199,29 @@ void HT1621::clear()
 
 void HT1621::update()
 {
-    // TODO: rewrite with a loop
     // the buffer is backwards with respect to the lcd. could be improved
-    wrByte(0, _buffer[5]);
-    wrByte(2, _buffer[4]);
-    wrByte(4, _buffer[3]);
-    wrByte(6, _buffer[2]);
-    wrByte(8, _buffer[1]);
-    wrByte(10,_buffer[0]);
+    for (int i = 0; i < DISPLAY_SIZE; i++)
+    {
+        wrByte(i * 2, _buffer[DISPLAY_SIZE - i - 1]);
+    }
+}
+
+void HT1621::print(const char *str)
+{
+    for (int i = 0; i < DISPLAY_SIZE; i++)
+    {
+    	// mask the first bit, used by batter and decimal point
+        _buffer[i] &= 0x80;
+
+        if (i >= (int)strlen(str))
+        	// show letter is it exists
+            _buffer[i] |= ascii[0];
+        else
+        	// when no letter - show space
+            _buffer[i] |= ascii[str[i] - ' '];
+    }
+
+    update();
 }
 
 void HT1621::print(int32_t num)
@@ -203,52 +231,18 @@ void HT1621::print(int32_t num)
     if (num < MIN_NUM)
         num = MIN_NUM;
 
-    char localbuffer[DISPLAY_SIZE + 1];
-    snprintf(localbuffer, sizeof(localbuffer), "%6li", num); // convert the decimal into string
+    // TODO: dots should be cleared
+
+    char str[DISPLAY_SIZE + 1] = {};
+    snprintf(str, sizeof(str), "%6li", num); // convert the decimal into string
 
     for (int i = 0; i < DISPLAY_SIZE; i++)
     {
-        // TODO: add letters support
-        // TODO: speed this up
         _buffer[i] &= 0x80; // mask the first bit, used by batter and decimal point
-        switch (localbuffer[i]){ // map the digits to the seg bits
-            case '0':
-                _buffer[i] |= 0x7D;
-                break;
-            case '1':
-                _buffer[i] |= 0x60;
-                break;
-            case '2':
-                _buffer[i] |= 0x3e;
-                break;
-            case '3':
-                _buffer[i] |= 0x7a;
-                break;
-            case '4':
-                _buffer[i] |= 0x63;
-                break;
-            case '5':
-                _buffer[i] |= 0x5b;
-                break;
-            case '6':
-                _buffer[i] |= 0x5f;
-                break;
-            case '7':
-                _buffer[i] |= 0x70;
-                break;
-            case '8':
-                _buffer[i] |= 0x7f;
-                break;
-            case '9':
-                _buffer[i] |= 0x7b;
-                break;
-            case '-':
-                _buffer[i] |= 0x02;
-                break;
-            }
-        }
+        _buffer[i] |= ascii[str[i] - ' '];
+	}
 
-        update();
+	update();
 }
 
 
