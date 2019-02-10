@@ -7,7 +7,8 @@ Based on the bitbanging efforts by [anxzhu](https://github.com/anxzhu) (2016-201
 APIs rewritten in 2018 to follow the LiquidCrystal format by [valerio\new]
 (https://github.com/5N44P).
 
-Refactored. Removed dependency on any MCU hardware by Viacheslav Balandin
+Refactored. Removed dependency on any MCU hardware. Added SPI support
+by Viacheslav Balandin
 https://github.com/hedgehogV/HT1621-lcd
 
 
@@ -15,6 +16,9 @@ https://github.com/hedgehogV/HT1621-lcd
 
 * `HT1621(pPinSet *pCs, pPinSet *pSck, pPinSet *pMosi, pPinSet *pBacklight)`
 Ctor. Starts the lcd with the pin assignement declared. The backlight pin is optional
+
+* `HT1621(pInterface *pSpi, pPinSet *pCs, pPinSet *pBacklight)`
+Starts the lcd with SPI interface. CS and backlight pins are optional. Tested with CPOL=LOW, EDGE=1
 
 * `void clear()`
 Clears the display
@@ -44,6 +48,31 @@ Turns off the display (doesn't turn off the backlight)
 
 * `void displayOn()`
 Turns the display back on after it has been disabled by `noDisplay()`
+
+## API usage
+
+To start display you have to call one of Ctors with pointers to toggle_Gpio or SpiTx functions.
+You may need a function wrapper. Wrapper example:
+
+```cpp
+// spi wrapper
+void SpiTx(uint8_t *ptr, uint8_t size)
+{
+  HAL_SPI_Transmit(&hspi2, ptr, size, 2000);
+}
+
+// cs wrapper
+void toggle_CS(bool b)
+{
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, b? GPIO_PIN_SET:GPIO_PIN_RESET);
+}
+
+// ctor call example
+HT1621 lcd = HT1621(&SpiTx, &toggle_CS);
+
+// prints "hello" on display
+lcd.print("HELLO");
+```
 
 
 ## Internal functioning

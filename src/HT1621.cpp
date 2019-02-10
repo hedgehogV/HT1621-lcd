@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "math.h"
 #include "stdio.h"
 #include "string.h"
+#include <algorithm>
 
 /**
  * @brief CALCULATION DEFINES BLOCK
@@ -119,7 +120,6 @@ union tDataSeq
 };
 
 
-// TODO: give wrapper example for GPIO toggle in README and in hpp
 HT1621::HT1621(pPinSet *pCs, pPinSet *pSck, pPinSet *pMosi, pPinSet *pBacklight)
 {
     pCsPin = pCs;
@@ -135,6 +135,19 @@ HT1621::HT1621(pPinSet *pCs, pPinSet *pSck, pPinSet *pMosi, pPinSet *pBacklight)
     wrCmd(LCDON);
 }
 
+HT1621::HT1621(pInterface *pSpi, pPinSet *pCs, pPinSet *pBacklight)
+{
+    pSpiInterface = pSpi;
+    pCsPin = pCs;
+    pBacklightPin = pBacklight;
+
+    wrCmd(BIAS);
+    wrCmd(RC256);
+    wrCmd(SYSDIS);
+    wrCmd(WDTDIS1);
+    wrCmd(SYSEN);
+    wrCmd(LCDON);
+}
 
 void HT1621::backlightOn()
 {
@@ -158,25 +171,42 @@ void HT1621::displayOff()
     wrCmd(LCDOFF);
 }
 
-void HT1621::wrBits(uint8_t bitField, uint8_t cnt)
+void HT1621::wrBytes(uint8_t *ptr, uint8_t size)
 {
-    if (!pSckPin || !pMosiPin)
-        return;
+    // probably need to use microsecond delays in this method
+    // after every pin toggle function to give display
+    // driver time for data reading. But current solution works for me
 
-    for (int i = 0; i < cnt; i++)
+    // lcd driver expects data in reverse order
+    std::reverse(ptr, ptr + size);
+
+    if (pCsPin)
+        pCsPin(LOW);
+
+    if (pSpiInterface)
+        pSpiInterface(ptr, size);
+    else if (pSckPin && pMosiPin)
     {
-        pSckPin(LOW);
-        pMosiPin((bitField & 0x80)? HIGH : LOW);
-        pSckPin(HIGH);
-        bitField <<= 1;
+        for (int k = 0; k < size; k++)
+        {
+            uint8_t byte = ptr[k];
+
+            for (int i = 0; i < BITS_PER_BYTE; i++)
+            {
+                pSckPin(LOW);
+                pMosiPin((byte & 0x80)? HIGH : LOW);
+                pSckPin(HIGH);
+                byte <<= 1;
+            }
+        }
     }
+
+    if (pCsPin)
+        pCsPin(HIGH);
 }
 
 void HT1621::wrBuffer()
 {
-    if (!pCsPin)
-        return;
-
     tDataSeq dataSeq = {};
     dataSeq.type = MODE_DATA;
     dataSeq.addr = 0;
@@ -185,29 +215,16 @@ void HT1621::wrBuffer()
     dataSeq.data1 = (_buffer[3] << 8) + _buffer[2];
     dataSeq.data2 = (_buffer[1] << 8) + _buffer[0];
 
-    pCsPin(LOW);
-
-    for (int i = 0; i < (int)sizeof(tDataSeq); i++)
-    {
-        wrBits(dataSeq.arr[7 - i], 8);
-    }
-
-    pCsPin(HIGH);
+    wrBytes(dataSeq.arr, sizeof(tDataSeq));
 }
 
 void HT1621::wrCmd(uint8_t cmd)
 {
-    if (!pCsPin)
-        return;
-
     tCmdSeq CommandSeq = {};
     CommandSeq.type = MODE_CMD;
     CommandSeq.data = cmd;
 
-    pCsPin(LOW);
-    wrBits(CommandSeq.arr[1], 8);
-    wrBits(CommandSeq.arr[0], 8);
-    pCsPin(HIGH);
+    wrBytes(CommandSeq.arr, sizeof(tCmdSeq));
 }
 
 void HT1621::batteryLevel(tBatteryLevel level)

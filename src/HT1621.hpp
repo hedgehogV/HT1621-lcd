@@ -40,6 +40,7 @@ class HT1621
 public:
 
     using pPinSet = void(bool);
+    using pInterface = void(uint8_t *, uint8_t);
 
     /**
      * @brief Construct a new HT1621 object
@@ -52,6 +53,17 @@ public:
      * @param pBacklight - pointer to backlight pin toggle function. Optional
      */
     HT1621(pPinSet *pCs, pPinSet *pSck, pPinSet *pMosi, pPinSet *pBacklight = nullptr);
+
+    /**
+     * @brief Construct a new HT1621::HT1621 object
+     *
+     * Starts the lcd with SPI interface. CS and backlight pins are optional
+     *
+     * @param pSpi - pointer to SPI write function
+     * @param pCs - pointer to CS pin toggle function. Optional if SPI has hardware CS configured
+     * @param pBacklight - pointer to backlight pin toggle function. Optional
+     */
+    HT1621(pInterface *pSpi, pPinSet *pCs = nullptr, pPinSet *pBacklight = nullptr);
 
     /**
      * @brief Turns on the display (doesn't affect the backlight)
@@ -131,9 +143,10 @@ private:
     pPinSet *pSckPin = nullptr; // for display it is WR pin
     pPinSet *pMosiPin = nullptr; // for display it is Data pin
     pPinSet *pBacklightPin = nullptr; // display backlight pin
+    pInterface *pSpiInterface = nullptr; // ptr to SPI_tx implementation
 
-    // the most low-level function. Just put one bit into display
-    void wrBits(uint8_t bitField, uint8_t cnt);
+    // the most low-level function. Sends array of bytes into display
+    void wrBytes(uint8_t* ptr, uint8_t size);
     // write _buffer to the display
     void wrBuffer();
     // write command sequance to display
