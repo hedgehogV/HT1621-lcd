@@ -7,8 +7,8 @@ Based on the bitbanging efforts by [anxzhu](https://github.com/anxzhu) (2016-201
 APIs rewritten in 2018 to follow the LiquidCrystal format by [valerio\new]
 (https://github.com/5N44P).
 
-Refactored. Removed dependency on any MCU hardware. Added SPI support
-by Viacheslav Balandin
+Refactored. Removed dependency on any MCU hardware. Added SPI support and text support.
+By Viacheslav Balandin
 https://github.com/hedgehogV/HT1621-lcd
 
 
