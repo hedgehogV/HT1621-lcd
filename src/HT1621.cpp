@@ -63,31 +63,44 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MODE_CMD  0x08
 #define MODE_DATA 0x05
 
-#define BATTERY_SEG_ADDR    0x80
-#define SEPARATOR_SEG_ADDR  0x80
+#define BATTERY_SEG 0x80
+#define DOT_SEG     0x80
 
+// TODO: add lowercase support
 const char ascii[] =
 {
 /*       0     1     2     3     4     5     6     7     8     9     a     b     c     d     e     f */
 /*      ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   '-'   ' '   ' ' */
-/*2*/ 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+/*2*/   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
 /*      '0'   '1'   '2'   '3'   '4'   '5'   '6'   '7'   '8'   '9'   ' '   ' '   ' '   ' '   ' '   ' ' */
 /*3*/   0x7D, 0x60, 0x3e, 0x7a, 0x63, 0x5b, 0x5f, 0x70, 0x7f, 0x7b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 /*      ' '   'A'   'B'   'C'   'D'   'E'   'F'   'G'   'H'   'I'   'J'   'K'   'L'   'M'   'N'   'O' */
-/*4*/ 	0x00, 0x77, 0x4f, 0x1d, 0x6e, 0x1f, 0x17, 0x5d, 0x47, 0x05, 0x68, 0x27, 0x0d, 0x54, 0x75, 0x4e,
+/*4*/   0x00, 0x77, 0x4f, 0x1d, 0x6e, 0x1f, 0x17, 0x5d, 0x47, 0x05, 0x68, 0x27, 0x0d, 0x54, 0x75, 0x4e,
 /*      'P'   'Q'   'R'   'S'   'T'   'U'   'V'   'W'   'X'   'Y'   'Z'   ' '   ' '   ' '   ' '   '_' */
-/*5*/ 	0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x00,
+/*5*/   0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+
+#if (('1234' >> 24) == '1')
+    #ifndef LITTLE_ENDIAN
+    #define LITTLE_ENDIAN
+    #endif
+#elif (('4321' >> 24) == '1')
+    #ifndef BIG_ENDIAN
+    #define BIG_ENDIAN
+    #endif
+#else
+    #error "Unable to determine endian. Set it manually"
+#endif
 
 union tCmdSeq
 {
     struct __attribute__((packed))
     {
-#if (('1234' >> 24) == '1') // LITTLE_ENDIAN
+#if defined LITTLE_ENDIAN
         uint16_t padding : 4;
         uint16_t data : 8;
         uint16_t type : 4;
-#elif (('4321' >> 24) == '1') // BIG_ENDIAN
+#elif defined BIG_ENDIAN
         uint16_t type : 4;
         uint16_t data : 8;
         uint16_t padding : 4;
@@ -100,14 +113,14 @@ union tDataSeq
 {
     struct __attribute__((packed))
     {
-#if (('1234' >> 24) == '1') // LITTLE_ENDIAN
+#if defined LITTLE_ENDIAN
         uint8_t padding : 7;
         uint16_t data2 : 16;
         uint16_t data1 : 16;
         uint16_t data0 : 16;
         uint8_t addr : 6;
         uint8_t type : 3;
-#elif (('4321' >> 24) == '1') // BIG_ENDIAN
+#elif defined BIG_ENDIAN
         uint8_t type : 3;
         uint8_t addr: 6;
         uint16_t data0 : 16;
@@ -177,6 +190,7 @@ void HT1621::wrBytes(uint8_t *ptr, uint8_t size)
     // after every pin toggle function to give display
     // driver time for data reading. But current solution works for me
 
+    // TODO: check wrong size
     // lcd driver expects data in reverse order
     std::reverse(ptr, ptr + size);
 
@@ -190,7 +204,7 @@ void HT1621::wrBytes(uint8_t *ptr, uint8_t size)
         for (int k = 0; k < size; k++)
         {
             uint8_t byte = ptr[k];
-
+            // send bits into display one by one
             for (int i = 0; i < BITS_PER_BYTE; i++)
             {
                 pSckPin(LOW);
@@ -210,10 +224,10 @@ void HT1621::wrBuffer()
     tDataSeq dataSeq = {};
     dataSeq.type = MODE_DATA;
     dataSeq.addr = 0;
-
-    dataSeq.data0 = (_buffer[5] << 8) + _buffer[4];
-    dataSeq.data1 = (_buffer[3] << 8) + _buffer[2];
-    dataSeq.data2 = (_buffer[1] << 8) + _buffer[0];
+    // unable to use memcpy function with bit fields. So fill data manually
+    dataSeq.data0 = (buffer[5] << 8) + buffer[4];
+    dataSeq.data1 = (buffer[3] << 8) + buffer[2];
+    dataSeq.data2 = (buffer[1] << 8) + buffer[0];
 
     wrBytes(dataSeq.arr, sizeof(tDataSeq));
 }
@@ -233,16 +247,16 @@ void HT1621::batteryLevel(tBatteryLevel level)
 
     switch(level)
     {
-        case 3: // battery on and all 3 segments
-            _buffer[0] |= BATTERY_SEG_ADDR;
+        case BATTERY_FULL:
+            buffer[0] |= BATTERY_SEG;
             // fall through
-        case 2: // battery on and 2 segments
-            _buffer[1] |= BATTERY_SEG_ADDR;
+        case BATTERY_MEDIUM:
+            buffer[1] |= BATTERY_SEG;
             // fall through
-        case 1: // battery on and 1 segment
-            _buffer[2] |= BATTERY_SEG_ADDR;
+        case BATTERY_LOW:
+            buffer[2] |= BATTERY_SEG;
             break;
-        case 0: // battery indication off
+        case BATTERY_NONE:
             break;
         default:
             break;
@@ -252,23 +266,23 @@ void HT1621::batteryLevel(tBatteryLevel level)
 
 void HT1621::batteryBufferClear()
 {
-    _buffer[0] &= ~BATTERY_SEG_ADDR;
-    _buffer[1] &= ~BATTERY_SEG_ADDR;
-    _buffer[2] &= ~BATTERY_SEG_ADDR;
+    buffer[0] &= ~BATTERY_SEG;
+    buffer[1] &= ~BATTERY_SEG;
+    buffer[2] &= ~BATTERY_SEG;
 }
 
 void HT1621::dotsBufferClear()
 {
-    _buffer[3] &= ~SEPARATOR_SEG_ADDR;
-    _buffer[4] &= ~SEPARATOR_SEG_ADDR;
-    _buffer[5] &= ~SEPARATOR_SEG_ADDR;
+    buffer[3] &= ~DOT_SEG;
+    buffer[4] &= ~DOT_SEG;
+    buffer[5] &= ~DOT_SEG;
 }
 
 void HT1621::lettersBufferClear()
 {
     for (int i = 0; i < DISPLAY_SIZE; i++)
     {
-        _buffer[i] &= 0x80;
+        buffer[i] &= BATTERY_SEG | DOT_SEG;
     }
 }
 
@@ -281,6 +295,18 @@ void HT1621::clear()
     wrBuffer();
 }
 
+static char strToAscii(char c)
+{
+    // Handle situation if char is out of displayable ascii table part.
+    // Show space instead
+    if (c < ' ')
+        return ascii[0];
+    if (c - ' ' > (int)sizeof(ascii))
+        return ascii[0];
+
+    return ascii[c - ' '];
+}
+
 void HT1621::print(const char *str)
 {
     dotsBufferClear();
@@ -288,12 +314,12 @@ void HT1621::print(const char *str)
 
     for (int i = 0; i < DISPLAY_SIZE; i++)
     {
-        if (i >= (int)strlen(str))
-        	// show letter is it exists
-            _buffer[i] |= ascii[0];
+        if (i < (int)strlen(str))
+            // display letters while they are in str
+            buffer[i] |= strToAscii(str[i]);
         else
-        	// when no letter - show space
-            _buffer[i] |= ascii[str[i] - ' '];
+            // when no letters left - show space
+            buffer[i] |= ascii[0];
     }
 
     wrBuffer();
@@ -314,7 +340,7 @@ void HT1621::print(int32_t num)
 
     for (int i = 0; i < DISPLAY_SIZE; i++)
     {
-        _buffer[i] |= ascii[str[i] - ' '];
+        buffer[i] |= strToAscii(str[i]);
     }
 
     wrBuffer();
@@ -351,5 +377,5 @@ void HT1621::decimalSeparator(uint8_t dpPosition)
     // 3 is the digit offset
     // the first three eights bits in the buffer are for the battery signs
     // the last three are for the decimal point
-    _buffer[DISPLAY_SIZE - dpPosition] |= SEPARATOR_SEG_ADDR;
+    buffer[DISPLAY_SIZE - dpPosition] |= DOT_SEG;
 }

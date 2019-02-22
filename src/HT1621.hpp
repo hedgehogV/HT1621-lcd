@@ -133,7 +133,7 @@ public:
 private:
 
     static const uint8_t DISPLAY_SIZE = 6; // symbols on display
-    char _buffer[DISPLAY_SIZE] = {}; // buffer where display data will be stored
+    char buffer[DISPLAY_SIZE] = {}; // buffer where display data will be stored
 
     // defines to set display pin to low or high level
     const bool LOW = 0;
@@ -147,7 +147,7 @@ private:
 
     // the most low-level function. Sends array of bytes into display
     void wrBytes(uint8_t* ptr, uint8_t size);
-    // write _buffer to the display
+    // write buffer to the display
     void wrBuffer();
     // write command sequance to display
     void wrCmd(uint8_t cmd);

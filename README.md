@@ -1,7 +1,7 @@
 # HT1621 7 segment LCD library
 Library for 7-segment lcds based on the HT1621 driver. Very often marked as PDC-6X1.
 
-<img src="extras/photo.jpg" alt="photo" width="500">
+<img src="extras/photo1.jpg" alt="photo" width="500">
 
 Based on the bitbanging efforts by [anxzhu](https://github.com/anxzhu) (2016-2018).
 APIs rewritten in 2018 to follow the LiquidCrystal format by [valerio\new]
