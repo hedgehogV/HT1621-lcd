@@ -15,7 +15,7 @@ https://github.com/hedgehogV/HT1621-lcd
 ## APIs reference
 
 * `HT1621(pPinSet *pCs, pPinSet *pSck, pPinSet *pMosi, pPinSet *pBacklight)`
-Ctor. Starts the lcd with the pin assignement declared. The backlight pin is optional
+Ctor. Starts the lcd with the pin assignment declared. The backlight pin is optional
 
 * `HT1621(pInterface *pSpi, pPinSet *pCs, pPinSet *pBacklight)`
 Starts the lcd with SPI interface. CS and backlight pins are optional. Tested with CPOL=LOW, EDGE=1
@@ -29,19 +29,22 @@ Turns on the backlight
 * `void backlightOff()`
 Turns off the backlight
 
-* `void batteryLevel(tBatteryLevel level)`
-Accepts values from 0 to 3. Smaller values will be treated like 0, bigger values will be treated as 3. 0 turns off the battery symbol. Values from 1 to 3 will be represented by the rectangles above the battery symbol.
+* `void batteryLevel(uint8_t percents)`
+Accepts values from 0 to 100. Bigger values will be treated as 100. Battery charge represented by the rectangles above the battery symbol.
 
 * `void print(const char *str)`
 Print string (up to 6 characters)
-Allowed characters: capital letters, digits, space, minus. Not allowed characters will be displayed as spaces.
-See characters appearence in `Internal functioning` chapter
+Allowed characters: letters, digits, space, minus, underscore. Not allowed characters will be displayed as spaces.
+See characters appearance in `Internal functioning` chapter
 
 * `void print(int32_t num)`
 Prints a signed integer between -99999 and 999999. Larger and smaller values will be displayed as -99999 and 999999
 
 * `void print(float num, int precision)`
 Prints a float with 0 to 3 decimals, based on the `precision` parameter. Default value is 3
+
+* `void print(int32_t multiplied_float, uint32_t multiplier)`
+Prints number with dot. Use it instead float. Float type usage may slow down many systems
 
 * `void displayOff()`
 Turns off the display (doesn't turn off the backlight)

@@ -30,21 +30,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
 #include "HT1621.hpp"
-#include "math.h"
-#include "stdio.h"
-#include "string.h"
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <algorithm>
 
 /**
  * @brief CALCULATION DEFINES BLOCK
  */
-#define MAX_NUM     999999
-#define MIN_NUM     -99999
+constexpr int MAX_NUM = 999999;
+constexpr int MIN_NUM = -99999;
 
-#define MAX_POSITIVE_PRECISION 3
-#define MAX_NEGATIVE_PRECISION 2
+constexpr size_t PRECISION_MAX_POSITIVE = 3;  // TODO: find better names
+constexpr size_t PRECISION_MAX_NEGATIVE = 2;
+constexpr size_t PRECISION_MIN = 1;
 
-#define BITS_PER_BYTE 8
+constexpr size_t BITS_PER_BYTE = 8;
+
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 /**
  * @brief DISPLAY HARDWARE DEFINES BLOCK
@@ -66,8 +70,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BATTERY_SEG 0x80
 #define DOT_SEG     0x80
 
-// TODO: add lowercase support
-const char ascii[] =
+static const char ascii[] =
 {
 /*       0     1     2     3     4     5     6     7     8     9     a     b     c     d     e     f */
 /*      ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   ' '   '-'   ' '   ' ' */
@@ -77,8 +80,14 @@ const char ascii[] =
 /*      ' '   'A'   'B'   'C'   'D'   'E'   'F'   'G'   'H'   'I'   'J'   'K'   'L'   'M'   'N'   'O' */
 /*4*/   0x00, 0x77, 0x4f, 0x1d, 0x6e, 0x1f, 0x17, 0x5d, 0x47, 0x05, 0x68, 0x27, 0x0d, 0x54, 0x75, 0x4e,
 /*      'P'   'Q'   'R'   'S'   'T'   'U'   'V'   'W'   'X'   'Y'   'Z'   ' '   ' '   ' '   ' '   '_' */
-/*5*/   0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x00,
+/*5*/   0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x08,
+/*      ' '   'A'   'B'   'C'   'D'   'E'   'F'   'G'   'H'   'I'   'J'   'K'   'L'   'M'   'N'   'O' */
+/*6*/   0x00, 0x77, 0x4f, 0x1d, 0x6e, 0x1f, 0x17, 0x5d, 0x47, 0x05, 0x68, 0x27, 0x0d, 0x54, 0x75, 0x4e,
+/*      'P'   'Q'   'R'   'S'   'T'   'U'   'V'   'W'   'X'   'Y'   'Z'   ' '   ' '   ' '   ' '   ' ' */
+/*7*/   0x37, 0x73, 0x06, 0x59, 0x0f, 0x6d, 0x23, 0x29, 0x67, 0x6b, 0x3c, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+
+#define ASCII_SPACE_SYMBOL 0x00
 
 #if (('1234' >> 24) == '1')
     #ifndef LITTLE_ENDIAN
@@ -201,16 +210,14 @@ void HT1621::wrBytes(uint8_t *ptr, uint8_t size)
         pSpiInterface(ptr, size);
     else if (pSckPin && pMosiPin)
     {
-        for (int k = 0; k < size; k++)
+        for (size_t k = 0; k < size; k++)
         {
-            uint8_t byte = ptr[k];
             // send bits into display one by one
-            for (int i = 0; i < BITS_PER_BYTE; i++)
+            for (size_t i = 0; i < BITS_PER_BYTE; i++)
             {
                 pSckPin(LOW);
-                pMosiPin((byte & 0x80)? HIGH : LOW);
+                pMosiPin((ptr[k] & (0x80 >> i))? HIGH : LOW);
                 pSckPin(HIGH);
-                byte <<= 1;
             }
         }
     }
@@ -241,25 +248,21 @@ void HT1621::wrCmd(uint8_t cmd)
     wrBytes(CommandSeq.arr, sizeof(tCmdSeq));
 }
 
-void HT1621::batteryLevel(tBatteryLevel level)
+void HT1621::batteryLevel(uint8_t percents)
 {
     batteryBufferClear();
 
-    switch(level)
+    if (percents > 75)
     {
-        case BATTERY_FULL:
-            buffer[0] |= BATTERY_SEG;
-            // fall through
-        case BATTERY_MEDIUM:
-            buffer[1] |= BATTERY_SEG;
-            // fall through
-        case BATTERY_LOW:
-            buffer[2] |= BATTERY_SEG;
-            break;
-        case BATTERY_NONE:
-            break;
-        default:
-            break;
+        buffer[0] |= BATTERY_SEG;
+    }
+    if (percents > 50)
+    {
+        buffer[1] |= BATTERY_SEG;
+    }
+    if (percents > 25)
+    {
+        buffer[2] |= BATTERY_SEG;
     }
     wrBuffer();
 }
@@ -280,7 +283,7 @@ void HT1621::dotsBufferClear()
 
 void HT1621::lettersBufferClear()
 {
-    for (int i = 0; i < DISPLAY_SIZE; i++)
+    for (size_t i = 0; i < DISPLAY_SIZE; i++)
     {
         buffer[i] &= BATTERY_SEG | DOT_SEG;
     }
@@ -295,33 +298,27 @@ void HT1621::clear()
     wrBuffer();
 }
 
-static char strToAscii(char c)
+void HT1621::bufferToAscii(const char *in, char *out)
 {
-    // Handle situation if char is out of displayable ascii table part.
-    // Show space instead
-    if (c < ' ')
-        return ascii[0];
-    if (c - ' ' > (int)sizeof(ascii))
-        return ascii[0];
-
-    return ascii[c - ' '];
+    for (size_t i = 0; i < MIN(DISPLAY_SIZE, strlen(in)); i++)
+    {
+        char c = in[i];
+        // Handle situation when char is out of displayable ascii table part.
+        // Show space instead
+        if (c < ' ')
+            out[i] |= ASCII_SPACE_SYMBOL;
+        else if (c - ' ' > (int)sizeof(ascii))
+            out[i] |= ASCII_SPACE_SYMBOL;
+        else
+            out[i] |= ascii[c - ' '];
+    }
 }
 
 void HT1621::print(const char *str)
 {
     dotsBufferClear();
     lettersBufferClear();
-
-    for (int i = 0; i < DISPLAY_SIZE; i++)
-    {
-        if (i < (int)strlen(str))
-            // display letters while they are in str
-            buffer[i] |= strToAscii(str[i]);
-        else
-            // when no letters left - show space
-            buffer[i] |= ascii[0];
-    }
-
+    bufferToAscii(str, buffer);
     wrBuffer();
 }
 
@@ -338,20 +335,17 @@ void HT1621::print(int32_t num)
     char str[DISPLAY_SIZE + 1] = {};
     snprintf(str, sizeof(str), "%6li", num);
 
-    for (int i = 0; i < DISPLAY_SIZE; i++)
-    {
-        buffer[i] |= strToAscii(str[i]);
-    }
+    bufferToAscii(str, buffer);
 
     wrBuffer();
 }
 
 void HT1621::print(float num, uint8_t precision)
 {
-    if (num >= 0 && precision > MAX_POSITIVE_PRECISION)
-        precision = MAX_POSITIVE_PRECISION;
-    else if (num < 0 && precision > MAX_NEGATIVE_PRECISION)
-        precision = MAX_NEGATIVE_PRECISION;
+    if (num >= 0 && precision > PRECISION_MAX_POSITIVE)
+        precision = PRECISION_MAX_POSITIVE;
+    else if (num < 0 && precision > PRECISION_MAX_NEGATIVE)
+        precision = PRECISION_MAX_NEGATIVE;
 
     int32_t integerated = (int32_t)(num * pow(10, precision));
 
@@ -360,8 +354,30 @@ void HT1621::print(float num, uint8_t precision)
     if (integerated < MIN_NUM)
         integerated = MIN_NUM;
 
-    lettersBufferClear();
     print(integerated);
+    decimalSeparator(precision);
+
+    wrBuffer();
+}
+
+// TODO: make multiplier more strict.
+void HT1621::print(int32_t multiplied_float, uint32_t multiplier)
+{
+    uint8_t precision = 0;
+
+    if (multiplier == 1000)
+        precision = 3;
+    else if (multiplier == 100)
+    	precision = 2;
+    else if (multiplier == 10)
+    	precision = 1;
+
+    if (multiplied_float > MAX_NUM)
+        multiplied_float = MAX_NUM;
+    if (multiplied_float < MIN_NUM)
+        multiplied_float = MIN_NUM;
+
+    print((int32_t)multiplied_float);
     decimalSeparator(precision);
 
     wrBuffer();
@@ -371,10 +387,10 @@ void HT1621::decimalSeparator(uint8_t dpPosition)
 {
     dotsBufferClear();
 
-    if (dpPosition == 0 || dpPosition > 3)
+    if (dpPosition < PRECISION_MIN || dpPosition > PRECISION_MAX_POSITIVE)
+    	// selected dot position not supported by display hardware
         return;
 
-    // 3 is the digit offset
     // the first three eights bits in the buffer are for the battery signs
     // the last three are for the decimal point
     buffer[DISPLAY_SIZE - dpPosition] |= DOT_SEG;

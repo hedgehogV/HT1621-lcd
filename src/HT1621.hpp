@@ -29,10 +29,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 *******************************************************************************/
 
-#ifndef  HT1621_H_
+#ifndef HT1621_H_
 #define HT1621_H_
 
-#include "stdint.h"
+#include <cstdint>
+#include <cstddef>
 
 
 class HT1621
@@ -45,7 +46,7 @@ public:
     /**
      * @brief Construct a new HT1621 object
      *
-     * Starts the lcd with the pin assignement declared. The backlight pin is optional
+     * Starts the lcd with the pin assignment declared. The backlight pin is optional
      *
      * @param pCs - pointer to CS pin toggle function
      * @param pSck - pointer to SCK pin toggle function
@@ -85,26 +86,19 @@ public:
      */
     void backlightOff();
 
-    enum tBatteryLevel
-    {
-        BATTERY_NONE,
-        BATTERY_LOW,
-        BATTERY_MEDIUM,
-        BATTERY_FULL,
-    };
-
     /**
      * @brief Show battery level.
      *
-     * @param level - battery charge state. May be NONE, LOW, MEDIUM or HIGH
+     * @param percents - battery charge state. May vary from 0 up to 100
      */
-    void batteryLevel(tBatteryLevel level);
+    void batteryLevel(uint8_t percents);
 
     /**
      * @brief Print string (up to 6 characters)
      *
-     * @param str String to be displayed. Allowed: capital letters, digits, space, minus
-     * Not allowed symbols will be displayed as spaces. See symbols appearence in README.md
+     * @param str String to be displayed.
+     * Allowed: letters, digits, space, minus, underscore
+     * Not allowed symbols will be displayed as spaces. See symbols appearance in README.md
      */
     void print(const char *str);
 
@@ -117,13 +111,19 @@ public:
     void print(int32_t num);
 
     /**
-     * @brief Prints a float with 0 to 3 decimals, based on the
-     * `precision` parameter. Default value is 3
+     * @brief Prints a float with 0 to 3 decimals, based on the `precision` parameter. Default value is 3
+     * This method may be slow on many systems. Try to avoid float usage.
+     * You may use `void print(int32_t multiplied_float, uint32_t multiplier)` instead
      *
      * @param num  - number to be printed
      * @param precision - precision of the number
      */
     void print(float num, uint8_t precision = 3);
+
+    /**
+     * @brief Prints number with dot. Use it instead float. Float type usage may slow down many systems
+     */
+    void print(int32_t multiplied_float, uint32_t multiplier);
 
     /**
      * @brief Clears the display
@@ -132,7 +132,7 @@ public:
 
 private:
 
-    static const uint8_t DISPLAY_SIZE = 6; // symbols on display
+    static const size_t DISPLAY_SIZE = 6; // symbols on display
     char buffer[DISPLAY_SIZE] = {}; // buffer where display data will be stored
 
     // defines to set display pin to low or high level
@@ -149,7 +149,7 @@ private:
     void wrBytes(uint8_t* ptr, uint8_t size);
     // write buffer to the display
     void wrBuffer();
-    // write command sequance to display
+    // write command sequence to display
     void wrCmd(uint8_t cmd);
     // set decimal separator. Used when print float numbers
     void decimalSeparator(uint8_t dpPosition);
@@ -161,6 +161,8 @@ private:
     void dotsBufferClear();
     // remove all symbols from display buffer except battery and dots
     void lettersBufferClear();
+    // coverts buffer symbols to format, which can be displayed by lcd
+    void bufferToAscii(const char *in, char *out);
 };
 
 #endif
