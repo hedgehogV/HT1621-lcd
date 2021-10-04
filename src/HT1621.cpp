@@ -300,7 +300,8 @@ void HT1621::clear()
 
 void HT1621::bufferToAscii(const char *in, char *out)
 {
-    for (size_t i = 0; i < MIN(DISPLAY_SIZE, strlen(in)); i++)
+    size_t len = MIN(DISPLAY_SIZE, strlen(in));
+    for (size_t i = 0; i < len; i++)
     {
         char c = in[i];
         // Handle situation when char is out of displayable ascii table part.
